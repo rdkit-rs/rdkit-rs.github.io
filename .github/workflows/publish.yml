@@ -16,6 +16,9 @@ jobs:
         with:
           hugo-version: "0.99.1"
 
+      - name: Setup npm
+        run: apt install nodejs && cd themes/geekdoc && npm install && npm run build
+
       - name: Build
         # remove --minify tag if you do not need it
         # docs: https://gohugo.io/hugo-pipes/minification/
