@@ -23,7 +23,8 @@ The rdkit-rs project provides two key libraries: `rdkit` and `rdkit-sys`. The sy
 
 With the `rdkit` library you will never need to manually free memory or worry about accessing null pointers. You also get all the benefits of an optimizing compiler and will never wait for garbage collection.
 
-Example:
+Example
+---
 
 in your Cargo.toml:
 
@@ -32,7 +33,7 @@ in your Cargo.toml:
 rdkit = "*"
 ```
 
-If you satisfy the requirement below, the following code should just compile!
+If you satisfy the requirements below, the following code should just compile!
 
 ```rust
 use rdkit::{Properties, ROMol};
