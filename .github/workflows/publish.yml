@@ -16,6 +16,9 @@ jobs:
         with:
           hugo-version: "0.99.1"
 
+      - name: Setup npm
+        run: sudo apt install nodejs && cd themes/geekdoc && npm install && npm run build
+
       - name: Build
         # remove --minify tag if you do not need it
         # docs: https://gohugo.io/hugo-pipes/minification/
@@ -24,11 +27,11 @@ jobs:
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
-          personal_token: ${{ secrets.TOKEN }}
-          external_repository: <username>/<username>.github.io
+          personal_token: ${{ github.token }}
+          external_repository: rdkit-rs/rdkit-rs.github.io
           publish_dir: ./public
           #   keep_files: true
-          user_name: <username>
-          user_email: <username@email.com>
-          publish_branch: master
+#          user_name: <username>
+#          user_email: <username@email.com>
+          publish_branch: gh-pages
         #   cname: example.com
