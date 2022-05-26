@@ -14,7 +14,7 @@ constructs so you can
  * Parse mol/molblocks
  * Normalize
  * Fingerprint
- * Enumerator tautomers/canonicalize
+ * Enumerate tautomers/canonicalize
 
 How does it work?
 ---
