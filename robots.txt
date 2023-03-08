@@ -1,4 +1,4 @@
 User-agent: *
 Disallow: /tags/*
 
-Sitemap: http://example.org/sitemap.xml
+Sitemap: https://rdkit-rs.github.io/sitemap.xml
