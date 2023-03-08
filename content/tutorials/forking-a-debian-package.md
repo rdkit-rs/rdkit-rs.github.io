@@ -378,13 +378,10 @@ definitely points to tool roughness.
 
 Let's use `apt-file` to see what packages provides the missing path:
 
-# apt-get install -y apt-file
-
-# apt-file update
-
-# apt-file search /usr/share/postgresql-common/pgxs_debian_control.mk
-
-postgresql-server-dev-all: /usr/share/postgresql-common/pgxs_debian_control.mk
+    # apt-get install -y apt-file
+    # apt-file update
+    # apt-file search /usr/share/postgresql-common/pgxs_debian_control.mk
+    postgresql-server-dev-all: /usr/share/postgresql-common/pgxs_debian_control.mk
 
 And we definitely had `postgresql-server-dev-all` in the build-depends of
 `debian/control`. Sounds like a race, the `debian/rules` can't evaluate with a
@@ -419,6 +416,19 @@ so let's destroy our incomplete filesystem and bootstrap it again, including
 
     # rm -rf /var/cache/pbuilder/base-jammy.cow
     # DIST=jammy git-pbuilder create --debootstrapopts=--components="main,universe"
+    [[[ SNIP ]]]
+    dh /usr/share/postgresql-common/pgxs_debian_control.mk --with python3 --buildsystem=cmake --parallel
+    make: dh: No such file or directory
+    debian/rules:37: /usr/share/postgresql-common/pgxs_debian_control.mk: No such file or directory
+    make: *** [debian/rules:40: /usr/share/postgresql-common/pgxs_debian_control.mk] Error 127
+    gbp:error: 'git-pbuilder' failed: it exited with 2
+
+still erroring on the missing file, the machinery is not loading the dependency,
+so let's recreate the filesystem again but force the install of
+`postgresql-server-dev-all` and `dh-python` and :
+
+    # rm -rf /var/cache/pbuilder/base-jammy.cow
+    # DIST=jammy git-pbuilder create --debootstrapopts=--components="main,universe" --debootstrapopts=--include="postgresql-server-dev-all debhelper"
 
 we are not installing the missing package, hoping instead the machinery for
 building a package will find it and install it
