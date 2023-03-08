@@ -122,7 +122,7 @@ wrangling autotools, cmake, Makefile, etc. The goal of building a binary has
 been boiled down to invoking `dpkg-buildpackage`. And for the most part you will
 use pre-built binaries from the Debian or Ubuntu build farms.
 
-## Mixing In An Updated Package
+## Finding Updated Packages
 
 It's great to be able to pull down the source code from the operating system's
 repositories. But the development of that package must happen somewhere, new
@@ -134,7 +134,7 @@ could build it ourselves and hit fast-forward on versions.
 
 Unfortunately, at this time of writing, I'm not sure where Ubuntu collaborates
 on packaging definitions. But we know that Debian packages migrate to Ubuntu
-over time and it's safe to assume Debian is the originator of the RDKit
+over time, and it's safe to assume Debian is the originator of the RDKit
 packaging definition.
 
 Enter [salsa.debian.org](https://salsa.debian.org), a gitlab installation and
@@ -145,3 +145,150 @@ group focused on making "Debian a good platform for chemists in their day-to-day
 work") and more specifically we can look at the
 [DebiChem Salsa Organization](https://salsa.debian.org/debichem-team) and their
 [RDkit project](https://salsa.debian.org/debichem-team/rdkit).
+
+We're going to take the RDKit definition from Salsa and make it our own.
+
+## Using git to build source packages
+
+In our opening _bash_ example we were able to pull sources from our regular repository
+and just build the software. But when package definitions are tracked in git we have to use modified techniques. And luckily for us the tooling around packages in git is quite mature and just the right kind of esoteric.
+
+The RDKit salsa repository carries on the tradition of tracking snapshots of the upstream source code -- the repository does _not_ track [the official RDKit repository](https://github.com/rdkit/rdkit), instead RDKit on Salsa unpacks static releases and tracks their contents as-is. It does not carry any commit history from upstream.
+
+Each official RDKit release is tracked with a corresponding tag. For example, RDKit 202209.3 gets the tag `202209.3`. But in the master branch there is a mix of RDKit C++ code and Debian packaging description in the debian folder. The tree looks something like this:
+
+    % tree .
+    .
+    ├── CMakeLists.txt
+    ├── CTestConfig.cmake
+    ├── CTestCustom.ctest.in
+    ├── Code
+    │   ├── CMakeLists.txt
+    [[ SNIP ]]
+    ├── debian
+    │   ├── TODO
+    │   ├── changelog
+    │   ├── clean
+    │   ├── control
+    │   ├── control.in
+    │   ├── copyright
+    │   ├── gbp.conf
+    │   ├── librdkit-dev.install
+    │   ├── librdkit1.install
+    │   ├── librdkit1.lintian-overrides
+    │   ├── patches
+    │   │   ├── NoDownloads.patch
+    [[ SNIP ]]
+    │   ├── pgversions
+    │   ├── python-rdkit.links
+    │   ├── rdkit-data.install
+    │   ├── rdkit-doc.dirs
+    │   ├── rdkit-doc.doc-base
+    │   ├── rules
+    │   ├── salsa-ci.yml
+    │   ├── source
+    │   │   ├── format
+    │   │   └── lintian-overrides
+    │   ├── tests
+    │   │   ├── control
+    │   │   └── installcheck
+    │   ├── upstream
+    │   │   └── metadata
+    │   └── watch
+
+Updating to a newer RDKit release would essential mean clobbering everything outside the `debian/` directory with the contents
+of the Release_YYYY_MM_B.zip downloaded from the RDKit GitHub releases. It does seem messy to throw away the commit history
+of the repository but Debian is only interest in packaging defined releases, something considered stable software by the
+source authors.
+
+We can use `gbp` (aka, git-buildpackage) to take a tag, build a source `.orig.tar.xz` and then apply the `debian/` rules to construct
+a binary package. Think of it like a git-centric workflow using the `dpkg-buildpackage` from before alongside a variety of
+quality-improving tools we'll cover as we go.
+
+But let's grab rdkit from salsa:
+
+    # apt-get install -y git-buildpackage
+    # git clone https://salsa.debian.org/debichem-team/rdkit.git
+    # cd rdkit/
+
+First we'll consider the top entry in the debian/changelog, this will dictate the version assigned to the package:
+
+    # cat debian/changelog
+    rdkit (202209.3-2) UNRELEASED; urgency=medium
+    
+    
+    -- Debichem Team <debichem-devel@lists.alioth.debian.org>  Sat, 14 Jan 2023 13:33:42 +0100
+
+So the changelog doesn't say much for humans, but it gives the version (`202209.3-2`), author (`Debichem Team`) and the date the changelog
+was generated (`Sat, 14 Jan 2023 13:33:42 +0100`). So we expect if we use the right incantations we can build rdkit 202209.3-2.
+
+    rdkit # gbp buildpackage
+    gbp:error: Pristine-tar couldn't verify "rdkit_202209.3.orig.tar.xz": fatal: path 'rdkit_202209.3.orig.tar.xz.delta' does not exist in 'refs/remotes/origin/pristine-tar'
+    pristine-tar: git show refs/remotes/origin/pristine-tar:rdkit_202209.3.orig.tar.xz.delta failed
+
+I don't know why we need a pristine tar ref. So we can tell gbp to skip it and try again:
+
+    rdkit# gbp buildpackage --git-no-pristine-tar
+    gbp:info: Performing the build
+    debuild: warning:     debian/changelog(l4): found trailer where expected start of change data
+    LINE:  -- Debichem Team <debichem-devel@lists.alioth.debian.org>  Sat, 14 Jan 2023 13:33:42 +0100
+    dpkg-buildpackage -us -uc -ui -i -I
+    dpkg-buildpackage: warning:     debian/changelog(l4): found trailer where expected start of change data
+    [[[ SNIP ]]]
+    dpkg-buildpackage -us -uc -ui -i -I failed
+    gbp:error: 'debuild -i -I' failed: it exited with 29
+
+Ah, our old friend `dpkg-buildpackage` shows up again. But it fails, it looks like the debian changelog is not suitable for a build just yet (submitting broken code happens!), we can edit the changelog:
+
+    rdkit# cat debian/changelog | head -n 10
+    rdkit (202209.3-2) UNRELEASED; urgency=medium
+    
+    * Just filling this in
+    
+    -- Debichem Team <debichem-devel@lists.alioth.debian.org>  Sat, 14 Jan 2023 13:33:42 +0100
+
+And try again:
+
+    rdkit # gbp buildpackage --git-no-pristine-tar
+    gbp:error: You have uncommitted changes in your source tree:
+    gbp:error: On branch master
+    Your branch is up to date with 'origin/master'.
+
+Turns out the process of running buildpackage had applied patches and dirtied our git checkout, making gbp suspicious the project
+was no longer suitable for release. We can add on another flag to ignore dirty changes in the git repo:
+
+    rdkit # gbp buildpackage --git-no-pristine-tar --git-ignore-new
+    [[[ SNIP ]]]
+    dpkg-checkbuilddeps: error: Unmet build dependencies: catch2 cmake dh-python doxygen flex imagemagick latexmk libboost-dev libboost-iostreams-dev libboost-python-dev libboost-regex-dev libboost-system-dev libboost-thread-dev libcairo-dev libcoordgen-dev libeigen3-dev libfreetype6-dev libmaeparser-dev librsvg2-bin libsqlite3-dev pandoc postgresql-server-dev-all python3-dev python3-numpy python3-pandas python3-pil | python3-imaging python3-recommonmark python3-sphinx python3-sqlalchemy rapidjson-dev texlive-latex-extra texlive-latex-recommended
+    dpkg-buildpackage: warning: build dependencies/conflicts unsatisfied; aborting
+
+And again we have an error, similar to the bash build before we are missing dependencies required to compile the code. The tools won't automatically install the build dependencies as that could be messy in a dev environment. Why don't we just jump to sandboxing a build, no need in potentially muddying up a developers OS.
+
+## Sandboxing A Build
+
+We want to build our software but we don't want to muddy up the base OS. Fortunately `debootstrap` can populate a _fresh_ filesystem inside a directory, a perfect OS for using `chroot` and friends to "move into" a sandbox. The gbp tool prefers to use cowbuilder for moving into a sandbox, making it easy to track changes done while building and then resetting the changes, avoiding a potentially expensive debootstrap to recreate the filesystem.
+
+    rdkit# gbp buildpackage --git-no-pristine-tar --git-ignore-new --git-pbuilder
+    gbp:info: Building with (cowbuilder) for sid
+    gbp:info: Performing the build
+    Base directory /var/cache/pbuilder/base.cow does not exist
+    gbp:error: 'git-pbuilder' failed: it exited with 1
+
+We have to bootstrap that chroot jail ourselves:
+
+    rdkit# DIST=jammy git-pbuilder create
+    I: Invoking pbuilder
+    I: forking: pbuilder create --buildplace /var/cache/pbuilder/base-jammy.cow --mirror http://ports.ubuntu.com/ubuntu-ports/ --distribution jammy --no-targz --extrapackages cowdancer
+
+
+--git-no-pristine-tar
+    
+
+
+
+
+
+
+## Further reading
+
+ - http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
