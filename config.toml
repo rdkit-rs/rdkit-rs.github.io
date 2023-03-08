@@ -1,4 +1,4 @@
-baseURL = 'http://example.org/'
+baseURL = 'https://rdkit-rs.github.io/'
 languageCode = 'en-us'
 title = 'RDKit-rs'
 theme = "geekdoc"
