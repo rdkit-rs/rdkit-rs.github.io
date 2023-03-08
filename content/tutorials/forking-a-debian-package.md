@@ -301,14 +301,129 @@ potentially expensive debootstrap to recreate the filesystem.
     Base directory /var/cache/pbuilder/base.cow does not exist
     gbp:error: 'git-pbuilder' failed: it exited with 1
 
-We have to bootstrap that chroot jail ourselves:
+We have to bootstrap that chroot jail ourselves, setting the distribution name
+(by default it wants debian sid). And keep in mind this will inherit the mirror
+used in the host OS, I ran this command from a jammy host on aarch64 hence the
+use ports.ubuntu.com. If you are going to use a distribution other than Jammy
+you need to specify `--mirror`.
 
-    rdkit# DIST=jammy git-pbuilder create
+    rdkit # DIST=jammy git-pbuilder create
     I: Invoking pbuilder
     I: forking: pbuilder create --buildplace /var/cache/pbuilder/base-jammy.cow --mirror http://ports.ubuntu.com/ubuntu-ports/ --distribution jammy --no-targz --extrapackages cowdancer
+    W: /root/.pbuilderrc does not exist
+    I: Running in no-targz mode
+    W: cgroups are not available on the host, not using them.
+    I: Distribution is jammy.
+    I: Current time: Wed Mar  8 05:28:28 GMT 2023
+    I: pbuilder-time-stamp: 1678253308
+    I: Building the build environment
+    I: running debootstrap
+    /usr/sbin/debootstrap
+    [[[ SNIP ]]]
+    I: Resolving dependencies of required packages...
+    I: Resolving dependencies of base packages...
+    I: Checking component main on http://ports.ubuntu.com/ubuntu-ports...
+    I: Retrieving adduser 3.118ubuntu5
+    I: Validating adduser 3.118ubuntu5
+    I: Retrieving apt 2.4.5
+    I: Validating apt 2.4.5
+    [[[ SNIP ]]]
+    rdkit # du -hs /var/cache/pbuilder/base-jammy.cow
+    422M    /var/cache/pbuilder/base-jammy.cow
 
---git-no-pristine-tar
+and again we retry the sandboxed build, making sure to set the dist option so
+gbp will reuse the deboostrap'd filesystem:
+
+    rdkit# gbp buildpackage --git-no-pristine-tar --git-ignore-new --git-pbuilder --git-dist=jammy
+    gbp:info: Building with (cowbuilder) for jammy
+    gbp:info: Performing the build
+    Building with cowbuilder for distribution jammy
+    W: /root/.pbuilderrc does not exist
+    I: using cowbuilder as pbuilder
+    dpkg-checkbuilddeps: error: Unmet build dependencies: bison catch2 cmake dh-python doxygen flex imagemagick latexmk libboost-dev libboost-iostreams-dev libboost-python-dev libboost-regex-dev libboost-system-dev libboost-thread-dev libcairo-dev libcoordgen-dev libeigen3-dev libfreetype6-dev libmaeparser-dev librsvg2-bin libsqlite3-dev pandoc postgresql-server-dev-all python3-dev python3-numpy python3-pandas python3-pil | python3-imaging python3-recommonmark python3-sphinx python3-sqlalchemy rapidjson-dev tex-gyre texlive-fonts-recommended texlive-latex-base texlive-latex-extra texlive-latex-recommended
+    W: Unmet build-dependency in source
+    dh /usr/share/postgresql-common/pgxs_debian_control.mk --with python3 --buildsystem=cmake --parallel
+    dh: error: unable to load addon python3: Can't locate Debian/Debhelper/Sequence/python3.pm in @INC (you may need to install the Debian::Debhelper::Sequence::python3 module) (@INC contains: /etc/perl /usr/local/lib/aarch64-linux-gnu/perl/5.34.0 /usr/local/share/perl/5.34.0 /usr/lib/aarch64-linux-gnu/perl5/5.34 /usr/share/perl5 /usr/lib/aarch64-linux-gnu/perl-base /usr/lib/aarch64-linux-gnu/perl/5.34 /usr/share/perl/5.34 /usr/local/lib/site_perl) at (eval 13) line 1.
+    BEGIN failed--compilation aborted at (eval 13) line 1.
+
+You might be tempted to try and install the build dependencies because you
+google around and learn you can log in to the chroot environment and execute
+arbitrary commands. Don't go down that path, the error your are seeing is not
+really an error and will be resolved by the dpkg machinery. The issue is really
+that `dh-python` is not installed on the host OS.
+
+    rdkit# apt-get install -y dh-python
+    [[[ SNIP ]]]
+
+And then try again:
+
+    rdkit# gbp buildpackage --git-no-pristine-tar --git-ignore-new --git-pbuilder --git-dist=jammy
+    gbp:info: Building with (cowbuilder) for jammy
+    gbp:info: Performing the build
+    Building with cowbuilder for distribution jammy
+    W: /root/.pbuilderrc does not exist
+    I: using cowbuilder as pbuilder
+    dpkg-checkbuilddeps: error: Unmet build dependencies: bison catch2 cmake doxygen flex imagemagick latexmk libboost-dev libboost-iostreams-dev libboost-python-dev libboost-regex-dev libboost-system-dev libboost-thread-dev libcairo-dev libcoordgen-dev libeigen3-dev libfreetype6-dev libmaeparser-dev librsvg2-bin libsqlite3-dev pandoc postgresql-server-dev-all python3-dev python3-numpy python3-pandas python3-pil | python3-imaging python3-recommonmark python3-sphinx python3-sqlalchemy rapidjson-dev tex-gyre texlive-fonts-recommended texlive-latex-base texlive-latex-extra texlive-latex-recommended
+    W: Unmet build-dependency in source
+    dh /usr/share/postgresql-common/pgxs_debian_control.mk --with python3 --buildsystem=cmake --parallel
+    dh: error: Unknown sequence /usr/share/postgresql-common/pgxs_debian_control.mk (choose from: binary binary-arch binary-indep build build-arch build-indep clean install install-arch install-indep)
+    debian/rules:37: /usr/share/postgresql-common/pgxs_debian_control.mk: No such file or directory
+    make: *** [debian/rules:40: /usr/share/postgresql-common/pgxs_debian_control.mk] Error 25
+    gbp:error: 'git-pbuilder' failed: it exited with 2
+
+Now our `debian/rules` (aka, a Debian packaging-flavored Makefile) is relying on
+the existence of a file but failing to load it, causing the Makefile to fail
+before package resolution can happen. This is a confusing situation and
+definitely points to tool roughness.
+
+Let's use `apt-file` to see what packages provides the missing path:
+
+# apt-get install -y apt-file
+
+# apt-file update
+
+# apt-file search /usr/share/postgresql-common/pgxs_debian_control.mk
+
+postgresql-server-dev-all: /usr/share/postgresql-common/pgxs_debian_control.mk
+
+And we definitely had `postgresql-server-dev-all` in the build-depends of
+`debian/control`. Sounds like a race, the `debian/rules` can't evaluate with a
+package from build-depends and the build-depends can't be satisfied until
+`debian/rules` is run. How about we shoe-horn this package in to the
+debootstrap'd filesystem?
+
+From the host OS let's see if we can understand this package more:
+
+    # apt-cache show postgresql-server-dev-all
+    # heavily edited output
+    Package: postgresql-server-dev-all
+    Section: universe/database
+    Origin: Ubuntu
+    Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+    Original-Maintainer: Debian PostgreSQL Maintainers <team+postgresql@tracker.debian.org>
+    Filename: pool/universe/p/postgresql-common/postgresql-server-dev-all_238_arm64.deb
+
+I see a lot of references to `universe` but I only saw `main` in the
+`debootstrap` invocation, which I copy here:
+
+    I: forking: pbuilder create --debootstrapopts --include="postgresql-server-dev-all" --buildplace /var/cache/pbuilder/base-jammy.cow --mirror http://ports.ubuntu.com/ubuntu-ports/ --distribution jammy --no-targz --extrapackages cowdancer
+    I: Checking component main on http://ports.ubuntu.com/ubuntu-ports...
+
+but no `universe`. Those repositories are described here:
+https://help.ubuntu.com/community/Repositories/Ubuntu. But essentially
+`universe` gets less attention from Ubuntu/Canonical but it has this postgresql
+dev package.
+
+so let's destroy our incomplete filesystem and bootstrap it again, including
+`universe` in the package list:
+
+    # rm -rf /var/cache/pbuilder/base-jammy.cow
+    # DIST=jammy git-pbuilder create --debootstrapopts=--components="main,universe"
+
+we are not installing the missing package, hoping instead the machinery for
+building a package will find it and install it
 
 ## Further reading
 
 - http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.html
+- https://en.wikipedia.org/wiki/Chroot
