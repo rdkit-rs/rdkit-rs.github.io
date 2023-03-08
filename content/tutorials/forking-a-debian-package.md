@@ -424,14 +424,18 @@ so let's destroy our incomplete filesystem and bootstrap it again, including
     make: *** [debian/rules:40: /usr/share/postgresql-common/pgxs_debian_control.mk] Error 127
     gbp:error: 'git-pbuilder' failed: it exited with 2
 
-still erroring on the missing file, the build machinery is not loading the dependency,
-so let's recreate the filesystem again but force the install of
-`postgresql-server-dev-all` and `debhelper` (the source of `/usr/bin/dh`) and dh-python (the source of `python3` support in builds):
+still erroring on the missing file, the build machinery is not loading the
+dependency, so let's recreate the filesystem again but force the install of
+`postgresql-server-dev-all` and `debhelper` (the source of `/usr/bin/dh`) and
+dh-python (the source of `python3` support in builds):
 
     # rm -rf /var/cache/pbuilder/base-jammy.cow
     # DIST=jammy git-pbuilder create --debootstrapopts=--components="main,universe" --debootstrapopts=--include="postgresql-server-dev-all debhelper dh-python"
 
-at this point I have used `DIST=jammy git-pbuilder login` to hop in to the filesystem and confirm files exist and things are still not working. I'm suspicious if this part of the build is inside the chroot jail or on the host, let's install on the host:
+at this point I have used `DIST=jammy git-pbuilder login` to hop in to the
+filesystem and confirm files exist and things are still not working. I'm
+suspicious if this part of the build is inside the chroot jail or on the host,
+let's install on the host:
 
     # apt-get install -y postgresql-server-dev-all debhelper dh-python
     # gbp buildpackage --git-no-pristine-tar --git-ignore-new --git-pbuilder --git-dist=jammy
@@ -442,7 +446,7 @@ at this point I have used `DIST=jammy git-pbuilder login` to hop in to the files
     @@ -166,10 +166,10 @@
     .
     This package contains the header files.
-    
+
     -Package: postgresql-15-rdkit
     +Package: postgresql-14-rdkit
     Architecture: any
@@ -457,11 +461,14 @@ at this point I have used `DIST=jammy git-pbuilder login` to hop in to the files
     make: *** [/usr/share/postgresql-common/pgxs_debian_control.mk:9: debian/control] Error 1
     gbp:error: 'git-pbuilder' failed: it exited with 2
 
-finally a new error, pointing to a version mismatch between Debian (postgres 15) and Ubuntu Jammy (postgres 14), let's try running the recommended fix `pg_buildext updatecontrol`:
+finally a new error, pointing to a version mismatch between Debian (postgres 15)
+and Ubuntu Jammy (postgres 14), let's try running the recommended fix
+`pg_buildext updatecontrol`:
 
     rdkit# pg_buildext updatecontrol
 
-now the `debian/control.in` has been re-rendered to update `debian/control` and we can continue the build:
+now the `debian/control.in` has been re-rendered to update `debian/control` and
+we can continue the build:
 
     # gbp buildpackage --git-no-pristine-tar --git-ignore-new --git-pbuilder --git-dist=jammy
     gbp:info: Building with (cowbuilder) for jammy
@@ -479,27 +486,36 @@ now the `debian/control.in` has been re-rendered to update `debian/control` and 
     [[[ SNIP ]]]
     [  0%] Building CXX object Code/RDGeneral/CMakeFiles/RDGeneral.dir/Invariant.cpp.o
     cd /build/rdkit-202209.3/obj-aarch64-linux-gnu/Code/RDGeneral && /usr/bin/c++ -DBOOST_SERIALIZATION_DYN_LINK -DRDGeneral_EXPORTS -DRDKIT_DYN_LINK -DRDKIT_RDGENERAL_BUILD -DRDK_64BIT_BUILD -DRDK_BUILD_COORDGEN_SUPPORT -DRDK_BUILD_DESCRIPTORS3D -DRDK_BUILD_MAEPARSER_SUPPORT -DRDK_BUILD_THREADSAFE_SSS -DRDK_HAS_EIGEN3 -DRDK_TEST_MULTITHREADED -DRDK_USE_BOOST_SERIALIZATION -DRDK_USE_STRICT_ROTOR_DEFINITION -I/build/rdkit-202209.3/External -I/usr/include/python3.10 -I/usr/lib/python3/dist-packages/numpy/core/include -I/build/rdkit-202209.3/Code -isystem /usr/include/eigen3 -g -O2 -ffile-prefix-map=/build/rdkit-202209.3=. -fstack-protector-strong -Wformat -Werror=format-security -Wdate-time -D_FORTIFY_SOURCE=2 -Wdate-time -D_FORTIFY_SOURCE=2 -Wno-deprecated -Wno-unused-function -fno-strict-aliasing -Wall -Wextra -fPIC -fPIC -std=gnu++17 -MD -MT Code/RDGeneral/CMakeFiles/RDGeneral.dir/Invariant.cpp.o -MF CMakeFiles/RDGeneral.dir/Invariant.cpp.o.d -o CMakeFiles/RDGeneral.dir/Invariant.cpp.o -c /build/rdkit-202209.3/Code/RDGeneral/Invariant.cpp
-    
-Finally! We see the C++ compiler is being used, the rdkit source code is compiled. At the end of the process we will have a collection of debian package files suitable for installing on Jammy.
+
+Finally! We see the C++ compiler is being used, the rdkit source code is
+compiled. At the end of the process we will have a collection of debian package
+files suitable for installing on Jammy.
 
 Takeaways:
 
- * bootstrapping the cowbuilder filesystem needs main and universe
- * the build host stills needs a fair bit of configuration, installing `postgresql-server-dev-all`, `debhelper`, `dh-python` which are used outside the cowbuilder context
- * you have to get used to running commands, reading opaque errors, deleting resources and trying again
-   * kudos to cowbuilder for aggressively caching apt downloads
+- bootstrapping the cowbuilder filesystem needs main and universe
+- the build host stills needs a fair bit of configuration, installing
+  `postgresql-server-dev-all`, `debhelper`, `dh-python` which are used outside
+  the cowbuilder context
+- you have to get used to running commands, reading opaque errors, deleting
+  resources and trying again
+  - kudos to cowbuilder for aggressively caching apt downloads
 
 ## Moving the process to GitHub Actions
 
-In general, we never want to ship production assets from a workstation environment. We want to build our artifacts in an auditable, open environment with logging and timestamps. Enter GitHub Actions, a git event-triggered runtime environment where we can recreate the above workflow.
+In general, we never want to ship production assets from a workstation
+environment. We want to build our artifacts in an auditable, open environment
+with logging and timestamps. Enter GitHub Actions, a git event-triggered runtime
+environment where we can recreate the above workflow.
 
-You will need to create a `.github/workflows/ci.yml` with all the above steps redone in a clean manner:
+You will need to create a `.github/workflows/ci.yml` with all the above steps
+redone in a clean manner:
 
     name: Build and publish Debian packages
-    
+
     on:
       push: {}
-    
+
     jobs:
       build_amd64:
         runs-on: buildjet-16vcpu-ubuntu-2204
@@ -507,29 +523,30 @@ You will need to create a `.github/workflows/ci.yml` with all the above steps re
           DIST: jammy
           ARCH: amd64
           DEB_BUILD_OPTIONS: nocheck
-    
+
         steps:
           - name: Check out the repo
             uses: actions/checkout@v3
             with:
               fetch-depth: 0
-    
+
           - name: Install build tools
             run: sudo apt-get update; sudo apt-get install -y git build-essential git-buildpackage debhelper dh-python
-    
+
           - name: Create base image
             run: git-pbuilder create
-    
+
           - name: Remove github stuff
             run: rm -rf .github/
-    
+
           - name: Build package
             run: gbp buildpackage --git-ignore-new --git-pbuilder --git-no-pristine-tar --git-arch=$ARCH --git-dist=$DIST -us -uc
-    
+
           - name: Check for debs
             run: ls -alh .; ls -alh ..
 
-and at the end of the run you will have `.deb` files in the filesystem of the github actions runner:
+and at the end of the run you will have `.deb` files in the filesystem of the
+github actions runner:
 
     total 245M
     drwxrwxr-x  3 runner runner 4.0K Mar  7 19:40 .
@@ -553,20 +570,42 @@ and at the end of the run you will have `.deb` files in the filesystem of the gi
 
 ## Publishing Debian Packages
 
-A `.deb` file on its own is not the most user-friendly. It can be downloaded to a machine and manually installed with `dpkg -i librdkit-dev_202209.3-2_amd64.deb` but dpkg can't perform any dependency resolution. You almost always want to use `apt`, and if you get an `apt` compatible archive (the convention is managed by `apt-transport-http`) installation becomes as easy as `apt-get install $pkg`
+A `.deb` file on its own is not the most user-friendly. It can be downloaded to
+a machine and manually installed with
+`dpkg -i librdkit-dev_202209.3-2_amd64.deb` but dpkg can't perform any
+dependency resolution. You almost always want to use `apt`, and if you get an
+`apt` compatible archive (the convention is managed by `apt-transport-http`)
+installation becomes as easy as `apt-get install $pkg`
 
-So what's in an APT HTTP archive? It's a convention of what files exist at what paths in an HTTP server:
+So what's in an APT HTTP archive? It's a convention of what files exist at what
+paths in an HTTP server:
 
-   * You don't need any kind of directory listing, just the ability to `HTTP GET` files
-   * A root URI for the archive, for example: `https://ports.ubuntu.com/`
-   * A distribution/codename which further builds `$ROOT_URI/dists/$CODENAME` like `https://ports.ubuntu.com/dists/jammy`
-   * A repository like `main` which further builds `$ROOT_URI/dists/$CODENAME/$REPOSITORY` like: `https://ports.ubuntu.com/dists/jammy/main`
-   * The apt tooling will generate a URI for downloading the full inventory of available packages, using the host architecture: `$ROOT_URI/dists/$CODENAME/$REPOSITORY/$arch-binary/Packages.gz`
-     * This compressed file has the packages, their dependencies names and constraints, and relative path information for downloading the deb file. For example `pool/universe/p/postgresql-common/postgresql-server-dev-all_238_arm64.deb`
+- You don't need any kind of directory listing, just the ability to `HTTP GET`
+  files
+- A root URI for the archive, for example: `https://ports.ubuntu.com/`
+- A distribution/codename which further builds `$ROOT_URI/dists/$CODENAME` like
+  `https://ports.ubuntu.com/dists/jammy`
+- A repository like `main` which further builds
+  `$ROOT_URI/dists/$CODENAME/$REPOSITORY` like:
+  `https://ports.ubuntu.com/dists/jammy/main`
+- The apt tooling will generate a URI for downloading the full inventory of
+  available packages, using the host architecture:
+  `$ROOT_URI/dists/$CODENAME/$REPOSITORY/$arch-binary/Packages.gz`
+  - This compressed file has the packages, their dependencies names and
+    constraints, and relative path information for downloading the deb file. For
+    example
+    `pool/universe/p/postgresql-common/postgresql-server-dev-all_238_arm64.deb`
 
-We do not want to maintain all these details of this directory layout and metadata. And each time we add a new package we have to upsert the details in to `Packages.gz`.
+We do not want to maintain all these details of this directory layout and
+metadata. And each time we add a new package we have to upsert the details in to
+`Packages.gz`.
 
-Enter `deb-s3` which handles the repository layout, uploading files, all in to a commodity-price S3 bucket. [Read more on their github page](https://github.com/deb-s3/deb-s3). I won't go over how to authenticate with AWS for S3, or how to create a public-read S3 bucket. But assuming you have credentials setup, this GitHub Action run will install deb-s3 and upload the `.deb` files to the correct spot:
+Enter `deb-s3` which handles the repository layout, uploading files, all in to a
+commodity-price S3 bucket.
+[Read more on their github page](https://github.com/deb-s3/deb-s3). I won't go
+over how to authenticate with AWS for S3, or how to create a public-read S3
+bucket. But assuming you have credentials setup, this GitHub Action run will
+install deb-s3 and upload the `.deb` files to the correct spot:
 
     # Upload a file to AWS s3
     - name:  Copy index.html to s3
@@ -577,24 +616,27 @@ Enter `deb-s3` which handles the repository layout, uploading files, all in to a
         aws s3 ls s3://rdkit-rs-debian/
         deb-s3 upload --bucket=rdkit-rs-debian --s3-region=eu-central-1 --arch=$ARCH --codename=$DIST ../*.deb
 
-Now you can configure a Jammy installation to reference this repository by configure `apt` with this config file:
+Now you can configure a Jammy installation to reference this repository by
+configure `apt` with this config file:
 
     # echo 'deb [trusted=yes] https://rdkit-rs-debian.s3.amazonaws.com jammy main' > /etc/apt/sources.list.d/rdkit-rs.list
     # apt-get update
     Hit:1 http://ports.ubuntu.com/ubuntu-ports jammy InRelease
     Get:2 http://ports.ubuntu.com/ubuntu-ports jammy-updates InRelease [119 kB]
-    Hit:3 http://ports.ubuntu.com/ubuntu-ports jammy-backports InRelease                               
-    Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-security InRelease [110 kB]            
+    Hit:3 http://ports.ubuntu.com/ubuntu-ports jammy-backports InRelease
+    Get:4 http://ports.ubuntu.com/ubuntu-ports jammy-security InRelease [110 kB]
     Ign:5 https://rdkit-rs-debian.s3.amazonaws.com jammy InRelease
     Get:6 http://ports.ubuntu.com/ubuntu-ports jammy-updates arm64 Contents (deb) [54.0 MB]
     Get:7 https://rdkit-rs-debian.s3.amazonaws.com jammy Release [2359 B]
-    Ign:8 https://rdkit-rs-debian.s3.amazonaws.com jammy Release.gpg       
+    Ign:8 https://rdkit-rs-debian.s3.amazonaws.com jammy Release.gpg
     Get:9 https://rdkit-rs-debian.s3.amazonaws.com jammy/main arm64 Packages [2042 B]
-    Get:10 http://ports.ubuntu.com/ubuntu-ports jammy-security arm64 Contents (deb) [47.6 MB]                                                                                                
-    Fetched 102 MB in 18s (5677 kB/s)                                                                                                                                                        
+    Get:10 http://ports.ubuntu.com/ubuntu-ports jammy-security arm64 Contents (deb) [47.6 MB]
+    Fetched 102 MB in 18s (5677 kB/s)
     Reading package lists... Done
 
-Here you can see apt is able to pull out the metadata from our custom archive, we can ask apt questions about rdkit packages and get references to both the official Ubuntu releases and our custom release:
+Here you can see apt is able to pull out the metadata from our custom archive,
+we can ask apt questions about rdkit packages and get references to both the
+official Ubuntu releases and our custom release:
 
     # apt-cache policy librdkit1
     librdkit1:
@@ -606,7 +648,8 @@ Here you can see apt is able to pull out the metadata from our custom archive, w
          202109.2-1build1 500
             500 http://ports.ubuntu.com/ubuntu-ports jammy/universe arm64 Packages
 
-And luckily our rdkit package has the highest priority, so we can install it without further configuration:
+And luckily our rdkit package has the highest priority, so we can install it
+without further configuration:
 
     # apt-get install -y librdkit1
     Reading package lists... Done
@@ -620,7 +663,7 @@ And luckily our rdkit package has the highest priority, so we can install it wit
     Need to get 6102 kB of archives.
     After this operation, 26.7 MB of additional disk space will be used.
     Get:1 http://ports.ubuntu.com/ubuntu-ports jammy/main arm64 libboost-iostreams1.74.0 arm64 1.74.0-14ubuntu3 [243 kB]
-    Get:2 https://rdkit-rs-debian.s3.amazonaws.com jammy/main arm64 librdkit1 arm64 202209.3-2 [4144 kB]            
+    Get:2 https://rdkit-rs-debian.s3.amazonaws.com jammy/main arm64 librdkit1 arm64 202209.3-2 [4144 kB]
     Get:3 http://ports.ubuntu.com/ubuntu-ports jammy/main arm64 libboost-python1.74.0 arm64 1.74.0-14ubuntu3 [293 kB]
     Get:4 http://ports.ubuntu.com/ubuntu-ports jammy/main arm64 libboost-serialization1.74.0 arm64 1.74.0-14ubuntu3 [319 kB]
     Get:5 http://ports.ubuntu.com/ubuntu-ports jammy-updates/main arm64 libpixman-1-0 arm64 0.40.0-1ubuntu0.22.04.1 [160 kB]
@@ -630,7 +673,7 @@ And luckily our rdkit package has the highest priority, so we can install it wit
     Get:9 http://ports.ubuntu.com/ubuntu-ports jammy/main arm64 libcairo2 arm64 1.16.0-5ubuntu2 [613 kB]
     Get:10 http://ports.ubuntu.com/ubuntu-ports jammy/universe arm64 libcoordgen3 arm64 3.0.0-2 [209 kB]
     Get:11 http://ports.ubuntu.com/ubuntu-ports jammy/universe arm64 libmaeparser1 arm64 1.2.4-1build1 [80.2 kB]
-    Fetched 6102 kB in 4s (1725 kB/s)                                         
+    Fetched 6102 kB in 4s (1725 kB/s)
     debconf: delaying package configuration, since apt-utils is not installed
     Selecting previously unselected package libboost-iostreams1.74.0:arm64.
     (Reading database ... 36587 files and directories currently installed.)
@@ -679,11 +722,16 @@ And luckily our rdkit package has the highest priority, so we can install it wit
     Setting up librdkit1 (202209.3-2) ...
     Processing triggers for libc-bin (2.35-0ubuntu3.1) ...
 
-You can see the apt dependency resolver is mixing S3 debian files with official files. Meaning we are spliced in to the dependency tree just right!
+You can see the apt dependency resolver is mixing S3 debian files with official
+files. Meaning we are spliced in to the dependency tree just right!
 
 ## Conclusion
 
-We can now install our custom rdkit in seconds, never having to worry about install build dependencies, those are all relegated to the CI pipeline environment. The runtime footprint is complete but tight and we can continue to pull in the wisdom from the DebiChem team while controlling the whole process for our own needs.
+We can now install our custom rdkit in seconds, never having to worry about
+install build dependencies, those are all relegated to the CI pipeline
+environment. The runtime footprint is complete but tight and we can continue to
+pull in the wisdom from the DebiChem team while controlling the whole process
+for our own needs.
 
 ## Further reading
 
