@@ -5,6 +5,14 @@ geekdocNav: true
 geekdocAnchor: false
 ---
 
+<!-- Ranges through content/tutorials/*.md -->
+{{ range .Pages }}
+    <li>
+        <a href="{{.Permalink}}">{{.Date.Format "2006-01-02"}} | {{.Title}}</a>
+    </li>
+{{ end }}
+
+
 [![License](https://img.shields.io/crates/l/rdkit.svg)](https://crates.io/crates/rdkit)
 [![Crates.io](https://img.shields.io/crates/v/rdkit.svg)](https://crates.io/crates/rdkit)
 
