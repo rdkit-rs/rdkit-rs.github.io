@@ -730,22 +730,112 @@ just installing the GCC binary for cross compilation. It's a full system
 configuration nightmare when it comes to libraries. Debian's `apt` installer
 doesn't have an easy way of separating platforms -- you can install foreign
 architecture libraries in your system with `dpkg --add-architecture arm64` but
-you will be mixing and matching amd64 and arm64.
+you will be mixing and matching amd64 and arm64, keeping architectures straight
+is tough.
 
 ### Compiling Through QEMU
 
-QEMU is a processor and hardware emulator which lets you do something like running arm64 on amd64 with transparent runtime instruction translation. And it forms a great base for build arm64 on amd64 through fancy sandboxes.
+QEMU is a processor and hardware emulator which lets you run, for example, arm64
+on amd64. The runtime instruction translation is transparent but has noticeable
+overhead. QEMU forms a great base for building arm64 on amd64 through fancy
+sandboxes.
 
-Up until now I would have assumed QEMU was a full-blown VM with full emulation of system hardware -- but it turns
-out the Linux kernel allows for an emulator-per-process architecture. The `binfmt` feature was new to me but the documentation helps make it clear this is old news:
+There's a relatively well-documented but still complex constellation of tools
+which come together for reproducible build environments inside a Debian host.
+Among the many tools, the popular ones: `qemu-user-static`, `chroot`, `binfmt`
+(available since Linux 2.1.43), `debootstrap`, and a variety of glue scripts
+like `pbuilder` and `cowbuilder`. We can dig in to how to use those tools.
+
+### `binfmt_misc`
+
+Up until this project I assumed QEMU was a full-blown VM with emulation of
+system hardware -- but it turns out the Linux kernel allows for an
+emulator-per-process architecture. The `binfmt` feature was new to me but the
+documentation helps make it clear this is old news:
 
     Versions 2.1.43 and later of the Linux kernel have contained the binfmt_misc module. This enables a system administrator to register interpreters for various binary formats based on a magic number or their file extension, and cause the appropriate interpreter to be invoked whenever a matching file is executed. Think of it as a more flexible version of the #! executable interpreter mechanism, or as something which can behave a little like "associations" in certain other operating systems (though in GNU/Linux the tendency is to keep this sort of thing somewhere else, like your file manager). update-binfmts manages a persistent database of these interpreters.
 
-There's a relatively well-documented but still complex constellation of tools which come together for reproducible build environments inside a Debian host. Among others:
-`qemu-user-static`, `binfmt`, `chroot`, and `binfmt` feature of Linux (available since Linux 2.1.43).
+You may want to confirm your binfmts is configured correctly in your build
+system. You can list out known executable formats and their registered
+interpreter:
 
-You may want to confirm your binfmts 
-`chroot` is a command line tool which makes a Linux system call to change a process's root filesystem. Imagine a filesystem as such:
+    update-binfmts --display
+
+And look for aarch64 -- we found this format was not configured in our Ubuntu
+docker images. Easy to fix:
+
+    update-binfmts --enable qemu-aarch64
+
+### `debootstrap`
+
+Now any aarch64 executable will automatically get instruction translation and
+"just work". The next question is how to set up a pure aarch64 filesystem in
+which to run the build. Enter `debootstrap`, a tool for unpacking
+Debian-flavored operating systems in to a file system. Think of it like the
+usual Debian installer but it unzips all the `.deb` files in to a directory
+tree. Remember in these QEMU examples we running from an amd64 host environment.
+In general you won't need to but you can run it manually:
+
+    # uname -a
+    Linux ruby-ubuntu-build 5.4.149-73.259.amzn2.x86_64 #1 SMP Mon Sep 27 12:48:12 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
+    # debootstrap --arch=arm64 --foreign --variant=buildd --verbose --include=fakeroot,build-essential --components=main --resolve-deps --no-merged-usr jammy /tmp/jammy-arm http://ports.ubuntu.com/ubuntu-ports
+    I: Retrieving InRelease
+    I: Checking Release signature
+    I: Valid Release signature (key id F6ECB3762474EDA9D21B7022871920D1991BC93C)
+    I: Retrieving Packages
+    I: Validating Packages
+    I: Resolving dependencies of required packages...
+    I: Resolving dependencies of base packages...
+    I: Checking component main on http://ports.ubuntu.com/ubuntu-ports...
+    I: Retrieving adduser 3.118ubuntu5
+    I: Validating adduser 3.118ubuntu5
+    I: Retrieving apt 2.4.5
+    I: Validating apt 2.4.5
+    [[[ SNIP ]]]
+
+### `chroot`
+
+This debootstrap is now ready to hop in and we can confirm we're in an aarch64
+context inside x86 (a unique `uname` signature for me, up until this point)
+
+    # uname -a
+    Linux ruby-ubuntu-build 5.4.149-73.259.amzn2.x86_64 #1 SMP Mon Sep 27 12:48:12 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
+    # chroot /tmp/jammy-arm/
+    # uname -a
+    Linux ruby-ubuntu-build 5.4.149-73.259.amzn2.x86_64 #1 SMP Mon Sep 27 12:48:12 UTC 2021 aarch64 aarch64 aarch64 GNU/Linux
+
+### Streamlining workflow with `pbuilder`
+
+Pretty cool! But there's no way we want to do the legwork of copying files in to
+the chroot environment and running all the `debuild` commands to build a binary
+deb package.
+
+The `pbuilder` family of tools have us covered for this
+disposable-foreign-filesystem-and-transparent-process-emulation-for-dpkg-buildpackage
+workflow. Making it a few high level commands, mostly wrappers for what we
+already covered.
+
+### Wrapping `debootstrap` with `cowbuilder`
+
+You may have heard of Docker's union filesystem, which provides the ability to
+copy-on-write (COW) a docker image's filesystem. The container's filesystem is
+built from image layers and the container is allowed to read/write to any file
+but it's done in a lazy manner which encourages reuse between containers. For
+example, imagine two containers are started from the same image -- your system
+would aggressively reuse files between the containers because of lazy file
+instantiation. Cowbuilder builds a base filesystem and each debian package build
+gets a fresh copy of the filesystem. Any changes to the file system are gone
+after a build.
+
+Note this invocation specifies the mirror to use, by default the fresh OS
+inherits from the host's archive configuration. Ubuntu does not mix amd64 and
+arm64 packages in the same archive, all arm64 packages are relegated to
+`ports.ubuntu.com`.
+
+The above arm64
+
+`chroot` is a command line tool which makes a Linux system call to change a
+process's root filesystem. Imagine a filesystem as such:
 
 ```
 
