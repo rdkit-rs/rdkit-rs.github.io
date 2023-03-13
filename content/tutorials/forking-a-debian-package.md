@@ -703,6 +703,54 @@ without further configuration:
 You can see the apt dependency resolver is mixing S3 debian files with official
 files. Meaning we are spliced in to the dependency tree just right!
 
+## Multi Architecture Build
+
+The rdkit debian packages are built for both amd64 and arm64 -- we anticipate
+deploying to a heterogeneous cloud and we anticipate developers coming from both
+Intel laptops and M1 laptops. Docker does include a handy runtime translation
+engine, powered by QEMU, but we'd rather avoid expensive and unstable runtime
+translation.
+
+We build rdkit twice, in two native environments provided by the paid
+[buildjet](https://buildjet.com) service. It is extra overhead to manage the
+service and complicate our environment with a paid service but we could not get
+around GitHub Actions limitations: no native ARM64 environment so we needed to
+use QEMU build environments and a 60 minute build limit which was easily
+exceeded.
+
+Even though it wasn't our final configuration, we did learn quite a bit about
+emulated cross builds from `pbuilder` and friends. Our notes follow.
+
+### Cross Compiling
+
+True cross compilation would have been preferable, running an amd64-native
+binary of GCC to emit code for arm64 -- fast enough to stay inside the free
+profile of GitHub Actions. Unfortunately true cross compilation is more than
+just installing the GCC binary for cross compilation. It's a full system
+configuration nightmare when it comes to libraries. Debian's `apt` installer
+doesn't have an easy way of separating platforms -- you can install foreign
+architecture libraries in your system with `dpkg --add-architecture arm64` but
+you will be mixing and matching amd64 and arm64.
+
+### Compiling Through QEMU
+
+QEMU is a processor and hardware emulator which lets you do something like running arm64 on amd64 with transparent runtime instruction translation. And it forms a great base for build arm64 on amd64 through fancy sandboxes.
+
+Up until now I would have assumed QEMU was a full-blown VM with full emulation of system hardware -- but it turns
+out the Linux kernel allows for an emulator-per-process architecture. The `binfmt` feature was new to me but the documentation helps make it clear this is old news:
+
+    Versions 2.1.43 and later of the Linux kernel have contained the binfmt_misc module. This enables a system administrator to register interpreters for various binary formats based on a magic number or their file extension, and cause the appropriate interpreter to be invoked whenever a matching file is executed. Think of it as a more flexible version of the #! executable interpreter mechanism, or as something which can behave a little like "associations" in certain other operating systems (though in GNU/Linux the tendency is to keep this sort of thing somewhere else, like your file manager). update-binfmts manages a persistent database of these interpreters.
+
+There's a relatively well-documented but still complex constellation of tools which come together for reproducible build environments inside a Debian host. Among others:
+`qemu-user-static`, `binfmt`, `chroot`, and `binfmt` feature of Linux (available since Linux 2.1.43).
+
+You may want to confirm your binfmts 
+`chroot` is a command line tool which makes a Linux system call to change a process's root filesystem. Imagine a filesystem as such:
+
+```
+
+```
+
 ## Conclusion
 
 We can now install our custom rdkit in seconds, never having to worry about
