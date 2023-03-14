@@ -5,13 +5,13 @@ geekdocHidden: false
 
 Debian is an operating system with a rich packaging format and dependency
 resolution system. It runs on the Linux kernel and provides _over 80,000
-packages_. Packages ranging from shells like _bash_, server software like
-_nginx_, desktop software like _Firefox_, and even full-blown desktop
-environments like _Gnome_. The Ubuntu operating system is a Debian variant which
-adopts many of the same packages as Debian, providing a commercial facade and a
-different, potentially favorable package lifecycle. Every two years Ubuntu names
-a Long Term Support (LTS) release, in this article we'll focus on Ubuntu 22.04
-codenamed Jammy, an LTS supported through 2027.
+packages_, including shells like _bash_, server software like _nginx_, desktop
+software like _Firefox_, and even full-blown desktop environments like _Gnome_.
+The Ubuntu operating system is a Debian variant that adopts many of the same
+packages as Debian, while also offering commercial support and a potentially
+more favorable package lifecycle. Every two years, Ubuntu names a Long Term
+Support (LTS) release, and in this article, we'll focus on Ubuntu 22.04,
+codenamed Jammy, which is an LTS release supported through 2027.
 
 RDKit is a C++ library and suite of Java/Python modules. Unfortunately Ubuntu
 Jammy is providing RDKit 202109 and will not update the major version. Ubuntu
@@ -23,14 +23,17 @@ RDKit.
 
 ## How can we fork a Debian package?
 
-Forking is a very common thing to solve in the world of git, you just hit the
-`fork` button on Github and copy the repository to your account. Or perhaps you
-need to fork a docker image? You can either layer your changes on top of the
-original image or you can take the Dockerfile and customize it to your needs,
-with easy distribution through `docker push`/`docker pull` to a repository.
-Unfortunately things are not so easy in the Debian world.
+Forking is common in the world of git, you just hit the `fork` button on Github
+and copy the repository to your account. Perhaps you need to fork a docker
+image? You can either layer your changes on top of the original image or you can
+take the Dockerfile and customize it to your needs, with easy distribution
+through `docker push`/`docker pull` to a repository. Unfortunately things are
+not so easy in the Debian world -- or at least they're not documented in a way I
+found easy to follow. This tutorial serves as my own notes but should empower
+others to fork high quality Debian packages and remix them for their own
+purposes.
 
-We'll need to understand:
+In order to fork effectively we'll need to understand:
 
 - what a Debian package is
 - how to build a package
@@ -40,10 +43,11 @@ We'll need to understand:
 
 ## Debian Source Packages
 
-One goal of Debian is to run herd on the 80,000+ open source packages. Debian
-does not maintain forks of these projects, instead preferring static snapshots
-of the package source code. Source code is packaged as an untouched `.tar.gz`
-and can be uploaded to Debian repositories for download by clients.
+One goal of Debian is to run herd on the
+[60,000+ open source packages](https://debian.pkgs.org/) . Debian does not
+maintain forks of these projects, instead preferring static snapshots of the
+package source code. Source code is packaged as an untouched `.tar.gz` and can
+be uploaded to Debian repositories for download by clients.
 
 Once the source is packaged it's time to answer the questions "how do we build
 something usable out of this source code?". No need to learn how to build every
@@ -772,9 +776,9 @@ Now any aarch64 executable will automatically get instruction translation and
 "just work". The next question is how to set up a pure aarch64 filesystem in
 which to run the build. Enter `debootstrap`, a tool for unpacking
 Debian-flavored operating systems in to a file system. Think of it like the
-usual Debian installer but it unzips all the `.deb` files in to a directory
-tree. Remember in these QEMU examples we running from an amd64 host environment.
-In general you won't need to but you can run it manually:
+usual Debian installer, but it unzips all the `.deb` files in to a directory
+tree. Remember in these QEMU examples we're running from an amd64 host
+environment. In general you won't need to, but you can run it manually:
 
     # uname -a
     Linux ruby-ubuntu-build 5.4.149-73.259.amzn2.x86_64 #1 SMP Mon Sep 27 12:48:12 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
@@ -793,10 +797,25 @@ In general you won't need to but you can run it manually:
     I: Validating apt 2.4.5
     [[[ SNIP ]]]
 
+Note this `debootstrap` invocation specifies the mirror to use, by default the
+bootstrapped OS inherits from the host's archive configuration -- in our case an
+amd64 host configured for `archives.ubuntu.com`. Ubuntu does not mix amd64 and
+arm64 packages in the same archive, all arm64 packages are relegated to
+`ports.ubuntu.com`.
+
+Understanding `debootstrap` may help when debugging high level wrapper scripts
+like `pbuilder`.
+
 ### `chroot`
 
-This debootstrap is now ready to hop in and we can confirm we're in an aarch64
-context inside x86 (a unique `uname` signature for me, up until this point)
+From the above example, our `/tmp/jammy-arm` directory is now ready for use. We
+can confirm we're in an aarch64 context inside x86 (a unique `uname` signature
+for me, up until this point) by _changing root_ with `chroot`. Changing root is
+done through a system call, instructing the Linux kernel to change the current
+process's root. All file reads after `chroot` are relative to the new root. In
+the following example we move our current bash program inside the root and all
+`$PATH` work is done from the new root, letting us call the host `uname` and the
+guest `uname` in quick succession.
 
     # uname -a
     Linux ruby-ubuntu-build 5.4.149-73.259.amzn2.x86_64 #1 SMP Mon Sep 27 12:48:12 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux
@@ -815,39 +834,160 @@ disposable-foreign-filesystem-and-transparent-process-emulation-for-dpkg-buildpa
 workflow. Making it a few high level commands, mostly wrappers for what we
 already covered.
 
-### Wrapping `debootstrap` with `cowbuilder`
+### Wrapping `debootstrap` and `cowbuilder` through `pbuilder`
 
 You may have heard of Docker's union filesystem, which provides the ability to
 copy-on-write (COW) a docker image's filesystem. The container's filesystem is
 built from image layers and the container is allowed to read/write to any file
-but it's done in a lazy manner which encourages reuse between containers. For
-example, imagine two containers are started from the same image -- your system
-would aggressively reuse files between the containers because of lazy file
-instantiation. Cowbuilder builds a base filesystem and each debian package build
-gets a fresh copy of the filesystem. Any changes to the file system are gone
-after a build.
+but it's done in a lazy manner which encourages reuse between containers. COW is
+a great technique for quickly, cheaply instantiating sandboxes and I find it
+essential when iterating on debian package configurations.
 
-Note this invocation specifies the mirror to use, by default the fresh OS
-inherits from the host's archive configuration. Ubuntu does not mix amd64 and
-arm64 packages in the same archive, all arm64 packages are relegated to
-`ports.ubuntu.com`.
+`cowbuilder` is the popular choice for managing a native COW directory tree. But
+you won't invoke the tool directly, it's easier to use the wrapper script
+`git-pbuilder` which will establish a convention to bridge `cowbuilder`,
+`debootstrap`, `pbuilder`, `git` and `dpkg-buildpackage`. That's a lot of layers
+in one spot but we can walk through it.
 
-The above arm64
+The first step is to create the filesystem, using `debootstrap` and
+`cowbuilder`:
 
-`chroot` is a command line tool which makes a Linux system call to change a
-process's root filesystem. Imagine a filesystem as such:
+    # DIST=jammy ARCH=arm64 git-pbuilder create --mirror=http://ports.ubuntu.com/ubuntu-ports
+    I: Invoking pbuilder
+    I: forking: pbuilder create --buildplace /var/cache/pbuilder/base-jammy-arm64.cow --mirror http://archive.ubuntu.com/ubuntu/ --architecture arm64 --distribution jammy --no-targz --extrapackages cowdancer
 
-```
+You can see it's putting the cowbuilder filesystem in to `/var/cache/pbuilder`
+and naming it based on the architecture and distribution. An enterprising
+individual could script this up further to build a debian package for multi
+distributions and architectures!
 
-```
+You can still `chroot` in to this image to poke around but the better choice is
+to use cowbuilder to remember the before state, giving an easy way to keeping
+things pristine for reuse.
+
+    # cowbuilder --login --basepath=/var/cache/pbuilder/base-focal-arm64.cow/
+    I: Copying COW directory
+    I: forking: rm -rf /var/cache/pbuilder/build/cow.21862
+    I: forking: cp -al /var/cache/pbuilder/base-focal-arm64.cow /var/cache/pbuilder/build/cow.21862
+    [[[ SNIP ]]]
+    # uname -a
+    Linux ruby-ubuntu-build 5.4.149-73.259.amzn2.x86_64 #1 SMP Mon Sep 27 12:48:12 UTC 2021 aarch64 aarch64 aarch64 GNU/Linux
+
+Let's keep going with this pristine filesystem and try copying our project in to
+the pristine context, running some builds.
+
+### Using git to build images
+
+Before we can get to the magic of moving debian builds inside the COW
+filesystem, let's talk about how `git` comes in to all this. Rather than
+tracking source code `.tar.gz` files independent of debian config files, which
+is fine and has worked for decades, we can instead unify all history in to a
+single `git` repository. Understanding and following conventions will help a lot
+to walk the happy path with the high-level tooling.
+
+The git repo for the Debian package does not necessarily need to be a fork of
+the upstream repository, and based on the upstream's tagging policy it may be
+advisable to just start a new repository. You don't want to get confused with
+the upstream's tags and you may not want to use all the space of commits between
+releases.
+
+The git repo should track all the `debian/` files (`debian/control`,
+`debian/changelog`, `debian/rules`, etc). And outside the `debian/` folder
+should be the package's source code, all-in-one place. Something like:
+
+    % tree debian-project
+    debian-project
+    ├── Makefile
+    ├── README.md
+    ├── debian
+    │   ├── changelog
+    │   ├── control
+    │   └── rules
+    └── main.c
+
+Mixing the upstream source code and debian files in a new history seems odd but
+it works.
+
+`git-pbuilder` has helpers for intregrating an upstream release's tar/zip file
+in to your git repo.
+[Take a look at the pbuilder docs for import-orig](http://honk.sigxcpu.org/projects/git-buildpackage/manual-html/gbp.import.fromscratch.html).
+
+That said, let's assume you're fork a repo that's fully usable, you just need
+the incantations. Consider this rdkit debian changelog:
+
+    rdkit-debian % head -n 5 debian/changelog
+    rdkit (202209.3-2) UNRELEASED; urgency=medium
+
+    * New upstream point release
+
+    -- Debichem Team <debichem-devel@lists.alioth.debian.org>  Sat, 14 Jan 2023 13:33:42 +0100
+
+In parentheses we see `202209.3` and it just so happens there's a corresponding
+git tag in the repo:
+
+    % git tag --list | grep 202209.3
+    upstream/202209.3-1
+
+This tag differs just barely but that's fine, the stem of `202209.3` (without
+the build version `-1` or `-2`) is enough info for `git-pbuilder` to find it and
+use it as the source copied in to the cowbuilder filesystem. To be clear: what's
+in the changelog when invoking `git-pbuilder` must match tags in the same repo.
+
+Ok with this git convention out of the way we can now start a build inside a
+pristine, foreign architecture environment:
+
+### Building the package
+
+Let's start off with the super high-level build command:
+
+    gbp buildpackage --git-ignore-new --git-pbuilder --git-no-pristine-tar --git-arch=arm64 --git-dist=jammy -us -uc
+
+And to break it down:
+
+- `--git-ignore-new` won't care if you have some staged or untracked changes
+- `--git-pbuilder` will activate the pbuilder family of tools
+- `--git-no-pristine-tar` not sure what this means but when things failed it
+  recommended adding the flag
+- `--git-arch` set the system architecture, used to find the right `cowbuilder`
+  filesystem
+- `--git-dist` set the OS distribution, used to find the right `cowbuilder`
+  filesystem
+- `-us -uc` the usual `dpkg-buildpackage` flags to skip signing the package
+
+Let's kick it all off:
+
+    rdkit# gbp buildpackage --git-ignore-new --git-pbuilder --git-no-pristine-tar --git-arch=arm64 --git-dist=jammy -us -uc
+    gbp:info: Building with (cowbuilder) for jammy:arm64
+    gbp:info: Creating rdkit_202209.3.orig.tar.gz from 'upstream/202209.3'
+    gbp:info: Performing the build
+    [[[ SNIP ]]]
+    I: Copying COW directory
+    I: forking: rm -rf /var/cache/pbuilder/build/cow.12153
+    I: forking: cp -al /var/cache/pbuilder/base-jammy-arm64.cow /var/cache/pbuilder/build/cow.12153
+    [[[ SNIP ]]]
+    I: forking: pbuilder build --debbuildopts  --debbuildopts '  '-us' '-uc'' --buildplace /var/cache/pbuilder/build/cow.12153 --buildresult /home/runner/actions-runner/_work/rdkit-debian --mirror http://ports.ubuntu.com/ubuntu-ports/ --architecture arm64 --distribution devel --no-targz --internal-chrootexec 'chroot /var/cache/pbuilder/build/cow.12153 cow-shell' /home/runner/actions-runner/_work/rdkit-debian/rdkit_202209.3-2.dsc
+    [[[ SNIP ]]]
+    dpkg-source: info: extracting rdkit in rdkit-202209.3
+    Depends: bison, catch2, cmake, debhelper-compat (= 12), dh-python, doxygen, flex, fonts-freefont-ttf, imagemagick [[[ SNIP ]]]
+    [[[ SNIP ]]]
+    dpkg-deb: building package 'pbuilder-satisfydepends-dummy' in '/tmp/satisfydepends-aptitude/pbuilder-satisfydepends-dummy.deb'.
+    [[[[ SNIP ]]]]
+    rdkit# ls ..
+
+### Cross build conclusion
+
+There you have it, a nice set of tools and practices for building arm64 inside
+of amd64, suitable for a freebie environment like GitHub Actions. With plenty of
+context that maybe you can fork a Debian package definition from
+[Salsa](https://salsa.debian.org/) and go wild!
 
 ## Conclusion
 
 We can now install our custom rdkit in seconds, never having to worry about
-install build dependencies, those are all relegated to the CI pipeline
-environment. The runtime footprint is complete but tight and we can continue to
-pull in the wisdom from the DebiChem team while controlling the whole process
-for our own needs.
+build dependencies, those are all relegated to the CI pipeline environment. The
+runtime footprint is complete but tight and we can continue to pull in the
+wisdom from the DebiChem team while controlling the whole process for our own
+needs.
 
 You can see the whole rdkit-debian repository here:
 https://github.com/rdkit-rs/rdkit-debian
