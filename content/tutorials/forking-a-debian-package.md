@@ -834,6 +834,25 @@ disposable-foreign-filesystem-and-transparent-process-emulation-for-dpkg-buildpa
 workflow. Making it a few high level commands, mostly wrappers for what we
 already covered.
 
+### Enabling QEMU's aarch64 in GitHub Actions
+
+You should just use
+[docker's qemu enabling action](https://github.com/docker/setup-qemu-action):
+
+    name: ci
+    on:
+      push:
+    jobs:
+      qemu:
+        runs-on: ubuntu-latest
+        steps:
+          - name: Set up QEMU
+            uses: docker/setup-qemu-action@v2
+
+You can't use the `update-binfmt` in the GitHub Actions workflow sandbox because
+the proc filesystem is not exposed. Not sure what exactly the docker action
+does, but it works around the issue and things "just work".
+
 ### Wrapping `debootstrap` and `cowbuilder` through `pbuilder`
 
 You may have heard of Docker's union filesystem, which provides the ability to
