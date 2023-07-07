@@ -69,6 +69,11 @@ Why Rust?
 
 Rust is a powerful systems level programming language, offering a smart static typing system, an integrated build system and package manager, and strong memory safety, among many other benefits. Read more about Rust in [the free Rust Book](https://doc.rust-lang.org/book/).
 
+Learn More
+---
+
+Javier Pineda, PhD., presented on Cheminee at a Scientist Show And Tell, [see the slides](/javier-show-and-tell-2023-truncated.html)
+
 Issues?
 ---
 
