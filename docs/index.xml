@@ -1,0 +1,292 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Documentation on RDKit-rs</title><link>https://rdkit-rs.github.io/docs/</link><description>Recent content in Documentation on RDKit-rs</description><generator>Hugo</generator><language>en-us</language><atom:link href="https://rdkit-rs.github.io/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>rdkit-rs</title><link>https://rdkit-rs.github.io/docs/rdkit-rs/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://rdkit-rs.github.io/docs/rdkit-rs/</guid><description>&lt;p&gt;&lt;a
+ class="gdoc-markdown__link--raw"
+ href="https://crates.io/crates/rdkit"
+&gt;&lt;img
+ src="https://img.shields.io/crates/v/rdkit.svg"
+ alt="Crates.io"
+ 
+/&gt;&lt;/a&gt;
+&lt;a
+ class="gdoc-markdown__link--raw"
+ href="https://crates.io/crates/rdkit"
+&gt;&lt;img
+ src="https://img.shields.io/crates/l/rdkit.svg"
+ alt="License"
+ 
+/&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Safe, idiomatic Rust bindings for &lt;a
+ class="gdoc-markdown__link"
+ href="https://www.rdkit.org/"
+&gt;RDKit&lt;/a&gt;, the industry-standard open-source cheminformatics library.&lt;/p&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="what-it-provides"
+ &gt;
+ What It Provides
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/rdkit-rs/#what-it-provides" class="gdoc-page__anchor clip flex align-center" title="Anchor to: What It Provides" aria-label="Anchor to: What It Provides" href="#what-it-provides"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The project ships two crates:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;rdkit-sys&lt;/code&gt;&lt;/strong&gt; — Low-level C++ bindings via &lt;a
+ class="gdoc-markdown__link"
+ href="https://crates.io/crates/cxx"
+&gt;cxx&lt;/a&gt;. Zero-cost wrappers exposing a key subset of RDKit&amp;rsquo;s C++ API.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;rdkit&lt;/code&gt;&lt;/strong&gt; — High-level Rust library built on &lt;code&gt;rdkit-sys&lt;/code&gt;. No manual memory management, no null pointers. Implements &lt;code&gt;Debug&lt;/code&gt;, &lt;code&gt;Clone&lt;/code&gt;, and idiomatic borrowing so molecules behave like native Rust types.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="capabilities"
+ &gt;
+ Capabilities
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/rdkit-rs/#capabilities" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Capabilities" aria-label="Anchor to: Capabilities" href="#capabilities"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;Area&lt;/th&gt;
+ &lt;th&gt;What You Can Do&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Parsing&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;SMILES, molblocks, SDF files (including gzipped)&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Normalization&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;Fragment parent, uncharger, canonical tautomer&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Fingerprints&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;Morgan fingerprints, pattern fingerprints&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Descriptors&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;Compute all standard RDKit descriptors (exactmw, NumAtoms, CrippenClogP, etc.)&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Tautomers&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;Enumerate tautomers, canonicalize&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Substructure&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;SMARTS-based substructure and superstructure matching&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;&lt;strong&gt;Periodic Table&lt;/strong&gt;&lt;/td&gt;
+ &lt;td&gt;Element lookups and properties&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="quick-start"
+ &gt;
+ Quick Start
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/rdkit-rs/#quick-start" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Quick Start" aria-label="Anchor to: Quick Start" href="#quick-start"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Add to your &lt;code&gt;Cargo.toml&lt;/code&gt;:&lt;/p&gt;</description></item><item><title>Cheminee</title><link>https://rdkit-rs.github.io/docs/cheminee/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://rdkit-rs.github.io/docs/cheminee/</guid><description>&lt;p&gt;&lt;a
+ class="gdoc-markdown__link--raw"
+ href="https://crates.io/crates/cheminee"
+&gt;&lt;img
+ src="https://img.shields.io/crates/v/cheminee.svg"
+ alt="Crates.io"
+ 
+/&gt;&lt;/a&gt;
+&lt;a
+ class="gdoc-markdown__link--raw"
+ href="https://crates.io/crates/cheminee"
+&gt;&lt;img
+ src="https://img.shields.io/crates/l/cheminee.svg"
+ alt="License"
+ 
+/&gt;&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Cheminee is a chemical structure search engine. Index chemical structures with arbitrary metadata, then search by substructure, superstructure, exact match, similarity, or descriptor queries. Built on &lt;a
+ class="gdoc-markdown__link"
+ href="https://github.com/quickwit-oss/tantivy"
+&gt;Tantivy&lt;/a&gt; and &lt;a
+ class="gdoc-markdown__link"
+ href="https://rdkit-rs.github.io/docs/rdkit-rs/"
+&gt;rdkit-rs&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Your callers don&amp;rsquo;t need RDKit — just talk to the REST API.&lt;/p&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="key-features"
+ &gt;
+ Key Features
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/cheminee/#key-features" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Key Features" aria-label="Anchor to: Key Features" href="#key-features"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Structure search&lt;/strong&gt; — Substructure, superstructure, identity (exact match), and Tanimoto similarity search&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Descriptor search&lt;/strong&gt; — Query by any RDKit descriptor (exactmw, NumAtoms, etc.) or custom metadata&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;SMILES standardization&lt;/strong&gt; — Fragment parent, uncharger, and canonicalization in bulk&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Format conversion&lt;/strong&gt; — SMILES to molblock and molblock to SMILES&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Neural similarity search&lt;/strong&gt; — Similarity queries use a neural network encoder (&lt;a
+ class="gdoc-markdown__link"
+ href="https://github.com/rdkit-rs/cheminee-similarity-model"
+&gt;cheminee-similarity-model&lt;/a&gt;) to embed Morgan fingerprints into a latent space, then search ranked clusters instead of brute-forcing every compound&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;REST API&lt;/strong&gt; — OpenAPI-documented endpoints with built-in Swagger UI&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;CLI&lt;/strong&gt; — Batch index SDF files, run queries from the terminal&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Docker image&lt;/strong&gt; — &lt;code&gt;ghcr.io/rdkit-rs/cheminee&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Ruby client&lt;/strong&gt; — &lt;a
+ class="gdoc-markdown__link"
+ href="https://github.com/rdkit-rs/cheminee-ruby"
+&gt;cheminee-ruby&lt;/a&gt; gem for programmatic access&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="api-endpoints"
+ &gt;
+ API Endpoints
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/cheminee/#api-endpoints" class="gdoc-page__anchor clip flex align-center" title="Anchor to: API Endpoints" aria-label="Anchor to: API Endpoints" href="#api-endpoints"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;table&gt;
+ &lt;thead&gt;
+ &lt;tr&gt;
+ &lt;th&gt;Method&lt;/th&gt;
+ &lt;th&gt;Path&lt;/th&gt;
+ &lt;th&gt;Description&lt;/th&gt;
+ &lt;/tr&gt;
+ &lt;/thead&gt;
+ &lt;tbody&gt;
+ &lt;tr&gt;
+ &lt;td&gt;POST&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/standardize&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Standardize a list of SMILES&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;POST&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/convert/mol_block_to_smiles&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Convert molblocks to SMILES&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;POST&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/convert/smiles_to_mol_block&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Convert SMILES to molblocks&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/schemas&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;List available index schemas&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;List indexes&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Get index details&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;POST&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Create an index&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;DELETE&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Delete an index&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;POST&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/merge&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Merge index segments&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;POST&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/bulk_index&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Index SMILES with metadata&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;DELETE&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/bulk_delete&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Delete compounds by SMILES&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/search/basic&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Basic descriptor/metadata search&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/search/substructure&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Substructure search&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/search/superstructure&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Superstructure search&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;tr&gt;
+ &lt;td&gt;GET&lt;/td&gt;
+ &lt;td&gt;&lt;code&gt;/v1/indexes/{index}/search/identity&lt;/code&gt;&lt;/td&gt;
+ &lt;td&gt;Exact structure match&lt;/td&gt;
+ &lt;/tr&gt;
+ &lt;/tbody&gt;
+&lt;/table&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="quick-start-with-docker"
+ &gt;
+ Quick Start with Docker
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/cheminee/#quick-start-with-docker" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Quick Start with Docker" aria-label="Anchor to: Quick Start with Docker" href="#quick-start-with-docker"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Run Cheminee:&lt;/p&gt;</description></item><item><title>Roadmap</title><link>https://rdkit-rs.github.io/docs/roadmap/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://rdkit-rs.github.io/docs/roadmap/</guid><description>&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="quickwit-integration"
+ &gt;
+ Quickwit Integration
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/roadmap/#quickwit-integration" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Quickwit Integration" aria-label="Anchor to: Quickwit Integration" href="#quickwit-integration"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;The next major milestone for Cheminee is integration with &lt;a
+ class="gdoc-markdown__link"
+ href="https://quickwit.io"
+&gt;Quickwit&lt;/a&gt;, a cloud-native search engine built on Tantivy. This will bring S3-backed storage, elastic compute scaling, and the full Quickwit operational model to chemical structure search.&lt;/p&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h3 id="why-quickwit"
+ &gt;
+ Why Quickwit?
+ &lt;/h3&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/roadmap/#why-quickwit" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Why Quickwit?" aria-label="Anchor to: Why Quickwit?" href="#why-quickwit"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Cheminee currently runs as a standalone server wrapping Tantivy directly. This works well, but requires a dedicated server sized for peak indexing workloads even when most of the time is spent serving search traffic. Quickwit solves this by separating compute from storage:&lt;/p&gt;</description></item><item><title>Resources</title><link>https://rdkit-rs.github.io/docs/resources/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://rdkit-rs.github.io/docs/resources/</guid><description>&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="presentations"
+ &gt;
+ Presentations
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/resources/#presentations" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Presentations" aria-label="Anchor to: Presentations" href="#presentations"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Javier Pineda, PhD., presented on Cheminee at a Scientist Show And Tell: &lt;a
+ class="gdoc-markdown__link"
+ href="https://rdkit-rs.github.io/javier-show-and-tell-2023-truncated.html"
+&gt;view the slides&lt;/a&gt;.&lt;/p&gt;
+&lt;div class="flex align-center gdoc-page__anchorwrap"&gt;
+ &lt;h2 id="why-rust"
+ &gt;
+ Why Rust?
+ &lt;/h2&gt;
+ &lt;a data-clipboard-text="https://rdkit-rs.github.io/docs/resources/#why-rust" class="gdoc-page__anchor clip flex align-center" title="Anchor to: Why Rust?" aria-label="Anchor to: Why Rust?" href="#why-rust"&gt;
+ &lt;svg class="gdoc-icon gdoc_link"&gt;&lt;use xlink:href="#gdoc_link"&gt;&lt;/use&gt;&lt;/svg&gt;
+ &lt;/a&gt;
+&lt;/div&gt;
+&lt;p&gt;Rust is a systems programming language offering memory safety without garbage collection, an integrated build system and package manager (cargo), and a strong static type system. For cheminformatics this means:&lt;/p&gt;</description></item></channel></rss>
